@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>即興演講練習器 - Impromptu Speech Pro</title>
+    <!-- 
+    如何使用：
+    1. 雙擊此 index.html 檔案即可在瀏覽器開啟。
+    2. 點擊「開始抽籤」按鈕啟動隨機主題滾動。
+    3. 抽中主題後，點擊「我準備好了」進入 60 秒規劃時間。
+    4. 規劃結束後點擊「開始演說」進入 60 秒正式演說。
+    5. 全程無需連網，音效由網頁 API 即時產生。
+    -->
+    <style>
+        :root {
+            --primary: #f97316;
+            --primary-dark: #ea580c;
+            --bg: #fff7ed;
+            --card: #ffffff;
+            --text: #431407;
+            --text-light: #9a3412;
+            --accent: #ef4444;
+            --danger: #dc2626;
+            --gradient: linear-gradient(135deg, #f97316, #ef4444);
+            --font-sans: system-ui, -apple-system, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        #app {
+            width: 100%;
+            max-width: 500px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .card {
+            background: var(--card);
+            padding: 40px 30px;
+            border-radius: 24px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            position: relative;
+            overflow: hidden;
+            min-height: 450px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            font-weight: 800;
+            letter-spacing: -0.025em;
+            color: var(--accent);
+        }
+
+        .subtitle {
+            font-size: 0.9rem;
+            color: var(--text-light);
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .btn {
+            display: inline-block;
+            width: 100%;
+            padding: 16px 24px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-bottom: 12px;
+            outline: none;
+            user-select: none;
+        }
+
+        .btn-primary {
+            background: var(--gradient);
+            color: white;
+            box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+        }
+
+        .btn-primary:active {
+            transform: scale(0.98);
+            opacity: 0.9;
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            border: 2px solid var(--primary);
+            color: var(--primary);
+        }
+
+        .btn-outline:active {
+            background-color: #eff6ff;
+        }
+
+        .btn-text {
+            background: none;
+            color: var(--text-light);
+            font-size: 0.9rem;
+            text-decoration: underline;
+            margin-top: 10px;
+        }
+
+        /* 抽籤滾動效果 */
+        .slot-machine {
+            height: 100px;
+            overflow: hidden;
+            position: relative;
+            margin: 1.5rem 0;
+            background: #f1f5f9;
+            border-radius: 16px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 2px inset rgba(0,0,0,0.05);
+        }
+
+        .slot-content {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--accent);
+            transition: transform 0.05s linear;
+        }
+
+        .result-display {
+            margin: 1.5rem 0;
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .result-zh {
+            font-size: 4rem;
+            font-weight: 900;
+            color: var(--text);
+            display: block;
+            line-height: 1.1;
+        }
+
+        .result-en {
+            font-size: 1.5rem;
+            color: var(--text-light);
+            font-weight: 500;
+            display: block;
+            margin-top: 0.5rem;
+        }
+
+        /* 計時器與圓形進度條 */
+        .timer-container {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            margin: 1.5rem auto;
+        }
+
+        .timer-svg {
+            transform: rotate(-90deg);
+            width: 200px;
+            height: 200px;
+        }
+
+        .timer-bg {
+            fill: none;
+            stroke: #e2e8f0;
+            stroke-width: 8;
+        }
+
+        .timer-progress {
+            fill: none;
+            stroke: var(--accent);
+            stroke-width: 8;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 0.1s linear;
+        }
+
+        .timer-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 3.5rem;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .phase-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .hidden { display: none !important; }
+
+        @media (max-width: 400px) {
+            .result-zh { font-size: 3rem; }
+            .timer-container { width: 160px; height: 160px; }
+            .timer-svg { width: 160px; height: 160px; }
+            .timer-text { font-size: 2.8rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div id="screen-home" class="card animate-fade">
+        <h1>即興演講練習</h1>
+        <p class="subtitle">Impromptu Speech Pro</p>
+        <div class="slot-machine">
+            <div id="slot-text" class="slot-content"></div>
+        </div>
+        <button id="btn-draw" class="btn btn-primary">抽選主題 Draw a Topic</button>
+    </div>
+
+    <div id="screen-result" class="card hidden">
+        <p class="subtitle">演講主題 Speech Topic</p>
+        <div class="result-display">
+            <span id="res-zh" class="result-zh">主題</span>
+            <span id="res-en" class="result-en">Topic</span>
+        </div>
+        <button id="btn-ready" class="btn btn-primary">我準備好了 I'm ready</button>
+        <button id="btn-redraw" class="btn btn-outline">換新主題 Redraw a Topic</button>
+    </div>
+
+    <div id="screen-timer" class="card hidden">
+        <p id="timer-phase-label" class="subtitle">準備時間 Planning Time</p>
+        <h2 id="timer-topic" class="phase-title">主題名稱</h2>
+        <div class="timer-container">
+            <svg class="timer-svg">
+                <circle class="timer-bg" cx="100" cy="100" r="90"></circle>
+                <circle id="timer-progress" class="timer-progress" cx="100" cy="100" r="90"></circle>
+            </svg>
+            <div id="timer-display" class="timer-text">1:00</div>
+        </div>
+        <div id="timer-controls">
+            <button id="btn-start-speech" class="btn btn-primary hidden">開始演說 Start Speaking</button>
+            <button id="btn-cancel" class="btn btn-text">重新開始 Restart</button>
+        </div>
+    </div>
+
+    <div id="screen-finish" class="card hidden">
+        <h1>時間到！</h1>
+        <p class="subtitle">演說結束</p>
+        <div style="margin: 2rem 0; font-size: 1.2rem;">
+            太棒了！你完成了一次練習。
+        </div>
+        <button id="btn-restart" class="btn btn-primary">再練一次</button>
+    </div>
+</div>
+
+<script>
+    // 緊湊格式的主題資料庫 (500+ 筆)
+    // 格式: 中文/英文/類型
+    const rawData = "快樂/Happiness/adj,悲傷/Sadness/adj,憤怒/Anger/adj,恐懼/Fear/adj,勇氣/Courage/noun,智慧/Wisdom/noun,時間/Time/noun,空間/Space/noun,生命/Life/noun,死亡/Death/noun,愛情/Love/noun,友情/Friendship/noun,希望/Hope/noun,夢想/Dream/noun,現實/Reality/noun,自由/Freedom/noun,正義/Justice/noun,和平/Peace/noun,戰爭/War/noun,秩序/Order/noun,混亂/Chaos/noun,真理/Truth/noun,謊言/Lie/noun,美麗/Beauty/adj,醜陋/Ugliness/adj,孤獨/Solitude/adj,熱鬧/Bustle/adj,安靜/Silence/adj,喧囂/Noise/adj,簡單/Simplicity/adj,複雜/Complexity/adj,純潔/Purity/adj,骯髒/Dirtiness/adj,溫暖/Warmth/adj,寒冷/Coldness/adj,光明/Light/noun,黑暗/Darkness/noun,成功/Success/noun,失敗/Failure/noun,開始/Beginning/noun,結束/Ending/noun,永恆/Eternity/noun,瞬間/Moment/noun,醫生/Doctor/job,老師/Teacher/job,警察/Police/job,廚師/Chef/job,司機/Driver/job,畫家/Painter/job,詩人/Poet/job,駭客/Hacker/job,記者/Reporter/job,律師/Lawyer/job,農夫/Farmer/job,歌手/Singer/job,演員/Actor/job,士兵/Soldier/job,國王/King/job,乞丐/Beggar/job,英雄/Hero/job,惡魔/Demon/job,森林/Forest/noun,海洋/Ocean/noun,沙漠/Desert/noun,冰川/Glacier/noun,閃電/Lightning/noun,微風/Breeze/noun,暴雨/Storm/noun,星空/Starry Sky/noun,晨曦/Dawn/noun,黃昏/Dusk/noun,泥土/Soil/noun,岩石/Rock/noun,鑰匙/Key/noun,鏡子/Mirror/noun,鐘錶/Clock/noun,地圖/Map/noun,羅盤/Compass/noun,燈塔/Lighthouse/noun,鋼琴/Piano/noun,畫筆/Brush/noun,盾牌/Shield/noun,利劍/Sword/noun,枷鎖/Shackles/noun,翅膀/Wings/noun,命運/Fate/noun,輪迴/Samsara/noun,夢境/Dreamland/noun,虛無/Nothingness/noun,存在/Existence/noun,平衡/Balance/noun,衝突/Conflict/noun,合作/Cooperation/noun,競爭/Competition/noun,背叛/Betrayal/noun,忠誠/Loyalty/noun,犧牲/Sacrifice/noun,貪婪/Greed/noun,慷慨/Generosity/noun,嫉妒/Envy/noun,傲慢/Pride/noun,謙卑/Humility/noun,耐心/Patience/noun,好奇/Curiosity/adj,懷舊/Nostalgia/adj,冒險/Adventure/noun,安全/Safety/noun,危險/Danger/noun,旅行/Travel/noun,歸鄉/Homecoming/noun,遺忘/Oblivion/noun,記憶/Memory/noun,聲音/Sound/noun,色彩/Color/noun,味道/Taste/noun,觸感/Touch/noun,氣味/Smell/noun,重量/Weight/noun,深度/Depth/noun,高度/Height/noun,寬度/Width/noun,速度/Speed/noun,力量/Power/noun,弱點/Weakness/noun,秘密/Secret/noun,面具/Mask/noun,靈魂/Soul/noun,肉體/Body/noun,影子/Shadow/noun,回聲/Echo/noun,鏡像/Mirror Image/noun,碎片/Fragment/noun,整體/Whole/noun,圓形/Circle/noun,方形/Square/noun,三角形/Triangle/noun,邊界/Boundary/noun,核心/Core/noun,門戶/Portal/noun,窗戶/Window/noun,牆壁/Wall/noun,橋樑/Bridge/noun,道路/Road/noun,迷宮/Maze/noun,花朵/Flower/noun,枯葉/Dead Leaf/noun,種子/Seed/noun,果實/Fruit/noun,根源/Root/noun,羽毛/Feather/noun,鱗片/Scale/noun,貝殼/Shell/noun,珍珠/Pearl/noun,黃金/Gold/noun,鋼鐵/Steel/noun,玻璃/Glass/noun,紙張/Paper/noun,墨水/Ink/noun,文字/Word/noun,語言/Language/noun,故事/Story/noun,神話/Myth/noun,傳說/Legend/noun,歷史/History/noun,未來/Future/noun,現在/Present/noun,過去/Past/noun,季節/Season/noun,春天/Spring/noun,夏天/Summer/noun,秋天/Autumn/noun,冬天/Winter/noun,太陽/Sun/noun,月亮/Moon/noun,星星/Star/noun,雲朵/Cloud/noun,雨滴/Raindrop/noun,雪花/Snowflake/noun,火焰/Flame/noun,流水/Water/noun,地震/Earthquake/noun,火山/Volcano/noun,彩虹/Rainbow/noun,極光/Aurora/noun,潮汐/Tide/noun,氣泡/Bubble/noun,火花/Spark/noun,灰塵/Dust/noun,煙霧/Smoke/noun,音樂/Music/noun,節奏/Rhythm/noun,旋律/Melody/noun,和聲/Harmony/noun,噪音/Noise/noun,掌聲/Applause/noun,笑聲/Laughter/noun,哭聲/Crying/noun,尖叫/Scream/noun,低語/Whisper/noun,沈默/Silence/noun,對話/Dialogue/noun,演講/Speech/noun,閱讀/Reading/noun,寫作/Writing/noun,思考/Thinking/noun,創造/Creation/noun,破壞/Destruction/noun,學習/Learning/noun,教導/Teaching/noun,遊戲/Game/noun,工作/Work/noun,休息/Rest/noun,睡眠/Sleep/noun,運動/Sport/noun,勝利/Victory/noun,獎盃/Trophy/noun,規則/Rule/noun,責任/Duty/noun,權利/Right/noun,法律/Law/noun,道德/Morality/noun,信仰/Faith/noun,科學/Science/noun,藝術/Art/noun,技術/Technology/noun,魔法/Magic/noun,奇蹟/Miracle/noun,災難/Disaster/noun,疾病/Disease/noun,健康/Health/noun,飢餓/Hunger/noun,口渴/Thirst/noun,財富/Wealth/noun,貧窮/Poverty/noun,權力/Power/noun,名聲/Fame/noun,尊嚴/Dignity/noun,榮耀/Glory/noun,恥辱/Shame/noun,善良/Kindness/noun,邪惡/Evil/noun,公平/Fairness/noun,偏見/Prejudice/noun,歧視/Discrimination/noun,寬容/Tolerance/noun,報復/Revenge/noun,原諒/Forgiveness/noun,同情/Empathy/noun,冷漠/Indifference/noun,熱情/Passion/noun,冷靜/Calmness/noun,瘋狂/Madness/noun,理智/Reason/noun,直覺/Intuition/noun,本能/Instinct/noun,靈感/Inspiration/noun,創意/Creativity/noun,邏輯/Logic/noun,想像/Imagination/noun,懷疑/Doubt/noun,信任/Trust/noun,承諾/Promise/noun,平等/Equality/noun,博愛/Fraternity/noun,民主/Democracy/noun,獨裁/Dictatorship/noun,革命/Revolution/noun,改革/Reform/noun,傳統/Tradition/noun,現代/Modernity/noun,文化/Culture/noun,文明/Civilization/noun,野蠻/Barbarism/noun,自然/Nature/noun,人工/Artificial/noun,環境/Environment/noun,氣候/Climate/noun,能源/Energy/noun,資源/Resource/noun,垃圾/Waste/noun,污染/Pollution/noun,保護/Protection/noun,發展/Development/noun,進步/Progress/noun,退步/Regress/noun,演化/Evolution/noun,滅絕/Extinction/noun,多樣/Diversity/noun,統一/Unity/noun,和諧/Harmony/noun,永續/Sustainability/noun,全球/Global/noun,在地/Local/noun,城市/City/noun,鄉村/Village/noun,家庭/Family/noun,社會/Society/noun,國家/Nation/noun,世界/World/noun,宇宙/Universe/noun,物質/Matter/noun,資訊/Information/noun,知識/Knowledge/noun,數據/Data/noun,網路/Network/noun,通訊/Communication/noun,交通/Traffic/noun,貿易/Trade/noun,金融/Finance/noun,經濟/Economy/noun,政治/Politics/noun,宗教/Religion/noun,哲學/Philosophy/noun,心理/Psychology/noun,生理/Physiology/noun,基因/Gene/noun,細胞/Cell/noun,器官/Organ/noun,系統/System/noun,結構/Structure/noun,功能/Function/noun,過程/Process/noun,結果/Result/noun,原因/Cause/noun,影響/Effect/noun,變化/Change/noun,穩定/Stability/noun,風險/Risk/noun,機會/Opportunity/noun,挑戰/Challenge/noun,目標/Goal/noun,計畫/Plan/noun,行動/Action/noun,經驗/Experience/noun,教訓/Lesson/noun,錯誤/Error/noun,正確/Correct/noun,標準/Standard/noun,品質/Quality/noun,效率/Efficiency/noun,效果/Effectiveness/noun,價值/Value/noun,意義/Meaning/noun,目的/Purpose/noun,動機/Motive/noun,意圖/Intent/noun,態度/Attitude/noun,性格/Character/noun,個性/Personality/noun,身份/Identity/noun,角色/Role/noun,地位/Status/noun,關係/Relationship/noun,連結/Connection/noun,隔閡/Gap/noun,距離/Distance/noun,方向/Direction/noun,位置/Position/noun,背景/Background/noun,前景/Foreground/noun,焦點/Focus/noun,透視/Perspective/noun,視野/Vision/noun,洞察/Insight/noun,預見/Foresight/noun,回顧/Retrospect/noun,反思/Reflection/noun,批判/Criticism/noun,讚美/Praise/noun,鼓勵/Encouragement/noun,支持/Support/noun,反對/Opposition/noun,抗爭/Resistance/noun,妥協/Compromise/noun,談判/Negotiation/noun,協議/Agreement/noun,和解/Reconciliation/noun,安全/Security/noun,威脅/Threat/noun,救援/Rescue/noun,幫助/Help/noun,服務/Service/noun,貢獻/Contribution/noun,成就/Achievement/noun,榮譽/Honor/noun,獨立/Independence/noun,依賴/Dependence/noun,互助/Mutual Aid/noun,團結/Solidarity/noun,孤立/Isolation/noun,排斥/Exclusion/noun,包容/Inclusion/noun,多元/Diversity/noun,公平/Equity/noun,良知/Conscience/noun,精神/Spirit/noun,心靈/Mind/noun,情感/Emotion/noun,理智/Intellect/noun,意志/Will/noun,慾望/Desire/noun,需求/Need/noun,滿足/Satisfaction/noun,痛苦/Pain/noun,苦難/Suffering/noun,幸福/Well-being/noun,悲劇/Tragedy/noun,喜劇/Comedy/noun,諷刺/Irony/noun,幽默/Humor/noun,嚴肅/Seriousness/noun,輕浮/Levity/noun,淺薄/Shallowness/noun,廣度/Breadth/noun,狹隘/Narrowness/noun,開放/Openness/noun,封閉/Closure/noun,透明/Transparency/noun,隱晦/Obscurity/noun,清晰/Clarity/noun,模糊/Ambiguity/noun,確定/Certainty/noun,懷疑/Skepticism/noun,無知/Ignorance/noun,客觀/Objectivity/noun,主觀/Subjectivity/noun,事實/Fact/noun,虛構/Fiction/noun,幻想/Fantasy/noun,實踐/Practice/noun,理論/Theory/noun,應用/Application/noun,創新/Innovation/noun,模仿/Imitation/noun,原創/Originality/noun,複製/Copy/noun,獨特/Uniqueness/noun,平凡/Ordinariness/noun,卓越/Excellence/noun,平庸/Mediocrity/noun,天才/Genius/noun,凡人/Mortal/noun,反派/Villain/noun,導師/Mentor/noun,夥伴/Partner/noun,對手/Rival/noun,領袖/Leader/noun,追隨/Follower/noun,群眾/Masses/noun,個人/Individual/noun,公共/Public/noun,私有/Private/noun,財產/Property/noun,分配/Distribution/noun,消費/Consumption/noun,生產/Production/noun,勞動/Labor/noun,休閒/Leisure/noun,美學/Aesthetics/noun,時尚/Fashion/noun,風格/Style/noun,形式/Form/noun,媒介/Medium/noun,解讀/Interpretation/noun,誤解/Misunderstanding/noun,表達/Expression/noun,傾聽/Listening/noun,理解/Understanding/noun,共鳴/Resonance/noun,分離/Separation/noun,親密/Intimacy/noun,疏離/Alienation/noun,歸屬/Belonging/noun,流浪/Wandering/noun,異鄉/Foreign Land/noun,跨越/Crossing/noun,限制/Limitation/noun,突破/Breakthrough/noun,極限/Limit/noun,可能/Possibility/noun,機率/Probability/noun,偶然/Chance/noun,必然/Necessity/noun,巧合/Coincidence/noun,日常/Daily Life/noun,瑣事/Trivia/noun,儀式/Ritual/noun,習慣/Habit/noun,成長/Growth/noun,衰老/Aging/noun,重生/Rebirth/noun,循環/Cycle/noun,失衡/Imbalance/noun,解構/Deconstruction/noun,重組/Reorganization/noun,退化/Degeneration/noun,緩慢/Slowness/noun,停滯/Stagnation/noun,流動/Flow/noun,靜止/Stillness/noun,韻律/Meter/noun,光影/Light and Shadow/noun,質感/Texture/noun,氣氛/Atmosphere/noun,感官/Senses/noun,靈魂/Soul/noun,精神/Spirit/noun,心靈/Mind/noun,情感/Emotion/noun,理智/Intellect/noun,意志/Will/noun,慾望/Desire/noun,需求/Need/noun,滿足/Satisfaction/noun,快樂/Joy/noun,痛苦/Pain/noun,幸福/Well-being/noun,悲劇/Tragedy/noun,喜劇/Comedy/noun,諷刺/Irony/noun,幽默/Humor/noun,嚴肅/Seriousness/noun,輕浮/Levity/noun,深度/Depth/noun,淺薄/Shallowness/noun,廣度/Breadth/noun,狹隘/Narrowness/noun,開放/Openness/noun,封閉/Closure/noun,透明/Transparency/noun,隱晦/Obscurity/noun,清晰/Clarity/noun,模糊/Ambiguity/noun,確定/Certainty/noun,懷疑/Skepticism/noun,信仰/Belief/noun,知識/Knowledge/noun,無知/Ignorance/noun,偏見/Bias/noun,客觀/Objectivity/noun,主觀/Subjectivity/noun,事實/Fact/noun,虛構/Fiction/noun,現實/Reality/noun,幻想/Fantasy/noun,理想/Ideal/noun,實踐/Practice/noun,理論/Theory/noun,應用/Application/noun,創新/Innovation/noun,模仿/Imitation/noun,原創/Originality/noun,複製/Copy/noun,獨特/Uniqueness/noun,平凡/Ordinariness/noun,卓越/Excellence/noun,平庸/Mediocrity/noun,天才/Genius/noun,凡人/Mortal/noun,英雄/Hero/noun,反派/Villain/noun,導師/Mentor/noun,學生/Student/noun,朋友/Friend/noun,敵人/Enemy/noun,夥伴/Partner/noun,對手/Rival/noun,領袖/Leader/noun,追隨/Follower/noun,群眾/Masses/noun,個人/Individual/noun,隱私/Privacy/noun,公共/Public/noun,共享/Sharing/noun,私有/Private/noun,財產/Property/noun,資源/Resource/noun,分配/Distribution/noun,消費/Consumption/noun,生產/Production/noun,勞動/Labor/noun,休閒/Leisure/noun,娛樂/Entertainment/noun,藝術/Art/noun,美學/Aesthetics/noun,品味/Taste/noun,時尚/Fashion/noun,風格/Style/noun,形式/Form/noun,內容/Content/noun,媒介/Medium/noun,訊息/Message/noun,解讀/Interpretation/noun,誤解/Misunderstanding/noun,溝通/Communication/noun,表達/Expression/noun,沈默/Silence/noun,傾聽/Listening/noun,理解/Understanding/noun,共鳴/Resonance/noun,連結/Connection/noun,分離/Separation/noun,距離/Distance/noun,親密/Intimacy/noun,疏離/Alienation/noun,歸屬/Belonging/noun,流浪/Wandering/noun,家園/Home/noun,異鄉/Foreign Land/noun,邊界/Border/noun,跨越/Crossing/noun,限制/Limitation/noun,突破/Breakthrough/noun,極限/Limit/noun,可能/Possibility/noun,機率/Probability/noun,偶然/Chance/noun,必然/Necessity/noun,巧合/Coincidence/noun,奇蹟/Miracle/noun,日常/Daily Life/noun,瑣事/Trivia/noun,儀式/Ritual/noun,習慣/Habit/noun,改變/Change/noun,成長/Growth/noun,衰老/Aging/noun,重生/Rebirth/noun,循環/Cycle/noun,平衡/Balance/noun,失衡/Imbalance/noun,和諧/Harmony/noun,混亂/Chaos/noun,秩序/Order/noun,結構/Structure/noun,解構/Deconstruction/noun,重組/Reorganization/noun,演化/Evolution/noun,退化/Degeneration/noun,進步/Progress/noun,永恆/Eternity/noun,瞬間/Instant/noun,速度/Speed/noun,緩慢/Slowness/noun,停滯/Stagnation/noun,流動/Flow/noun,靜止/Stillness/noun,節奏/Rhythm/noun,韻律/Meter/noun,色彩/Color/noun,光影/Light and Shadow/noun,質感/Texture/noun,氣氛/Atmosphere/noun,感官/Senses/noun,直覺/Intuition/noun,本能/Instinct/noun,靈感/Inspiration/noun,創意/Creativity/noun,想像/Imagination/noun,夢想/Dream/noun,理想/Ideal/noun,現實/Reality/noun,真相/Truth/noun,謊言/Lie/noun,秘密/Secret/noun,公開/Public/noun,隱私/Privacy/noun,共享/Sharing/noun,孤獨/Loneliness/noun,陪伴/Companionship/noun";
+
+    const topics = rawData.split(',').map(item => {
+        const [zh, en, type] = item.split('/');
+        return { zh, en, type };
+    });
+
+    // 狀態管理
+    let currentTopic = null;
+    let timerInterval = null;
+    let startTime = null;
+    let duration = 60; // 秒
+    let phase = 'planning'; // 'planning' or 'speech'
+
+    // 音效產生器 (Web Audio API)
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playBeep(freq = 880, duration = 0.15) {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+    }
+
+    // 畫面切換
+    function showScreen(id) {
+        document.querySelectorAll('.card').forEach(c => c.classList.add('hidden'));
+        const target = document.getElementById(id);
+        target.classList.remove('hidden');
+        target.classList.add('animate-fade');
+    }
+
+    // 抽籤動畫
+    function startDrawing() {
+        const slotText = document.getElementById('slot-text');
+        const btnDraw = document.getElementById('btn-draw');
+        btnDraw.disabled = true;
+
+        let count = 0;
+        const totalDuration = 1400; // 縮短為 1.4 秒
+        const startTime = performance.now();
+
+        function animate(now) {
+            const elapsed = now - startTime;
+            if (elapsed < totalDuration) {
+                // 高速滾動
+                const randomIndex = Math.floor(Math.random() * topics.length);
+                slotText.innerText = topics[randomIndex].zh;
+                requestAnimationFrame(animate);
+            } else {
+                // 停止
+                currentTopic = topics[Math.floor(Math.random() * topics.length)];
+                document.getElementById('res-zh').innerText = currentTopic.zh;
+                document.getElementById('res-en').innerText = currentTopic.en;
+                showScreen('screen-result');
+                btnDraw.disabled = false;
+            }
+        }
+        requestAnimationFrame(animate);
+    }
+
+    // 計時器邏輯
+    function startTimer(secs) {
+        clearInterval(timerInterval);
+        duration = secs;
+        startTime = Date.now();
+        updateTimerDisplay();
+
+        timerInterval = setInterval(() => {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const remaining = duration - elapsed;
+
+            if (remaining <= 0) {
+                clearInterval(timerInterval);
+                onTimerEnd();
+            } else {
+                updateTimerDisplay(remaining);
+            }
+        }, 100);
+    }
+
+    function updateTimerDisplay(remaining = duration) {
+        const display = document.getElementById('timer-display');
+        const progress = document.getElementById('timer-progress');
+        
+        const m = Math.floor(remaining / 60);
+        const s = remaining % 60;
+        display.innerText = `${m}:${s.toString().padStart(2, '0')}`;
+
+        // 圓形進度條 (SVG stroke-dasharray = 2 * PI * R = 2 * 3.14 * 90 ≈ 565)
+        const offset = 565 - (remaining / duration) * 565;
+        progress.style.strokeDasharray = '565';
+        progress.style.strokeDashoffset = offset;
+    }
+
+    function onTimerEnd() {
+        playBeep(880, 0.2);
+        setTimeout(() => playBeep(880, 0.2), 300); // 雙響
+
+        if (phase === 'planning') {
+            document.getElementById('timer-phase-label').innerText = '準備好了？ Ready?';
+            document.getElementById('btn-start-speech').classList.remove('hidden');
+            document.getElementById('timer-display').innerText = "1:00";
+        } else {
+            showScreen('screen-finish');
+        }
+    }
+
+    // 事件監聽
+    document.getElementById('btn-draw').onclick = startDrawing;
+    document.getElementById('btn-redraw').onclick = () => showScreen('screen-home');
+    
+    document.getElementById('btn-ready').onclick = () => {
+        phase = 'planning';
+        document.getElementById('timer-phase-label').innerText = '準備時間 Planning Time';
+        document.getElementById('timer-topic').innerText = `${currentTopic.zh} / ${currentTopic.en}`;
+        document.getElementById('btn-start-speech').classList.add('hidden');
+        showScreen('screen-timer');
+        startTimer(60);
+    };
+
+    document.getElementById('btn-start-speech').onclick = () => {
+        phase = 'speech';
+        document.getElementById('timer-phase-label').innerText = '正式演說 Speaking';
+        document.getElementById('btn-start-speech').classList.add('hidden');
+        startTimer(60);
+    };
+
+    document.getElementById('btn-cancel').onclick = () => {
+        clearInterval(timerInterval);
+        showScreen('screen-home');
+    };
+
+    document.getElementById('btn-restart').onclick = () => showScreen('screen-home');
+
+    // 初始化
+    updateTimerDisplay(60);
+</script>
+
+</body>
+</html>
