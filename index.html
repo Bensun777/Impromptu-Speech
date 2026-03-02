@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Impromptu Speech Pro</title>
+    <title>Impromptu Speech</title>
     <!-- 
     How to use:
     1. Double-click this index.html file to open in a browser.
@@ -122,33 +122,33 @@
         .btn-text {
             background: none;
             color: var(--text-light);
-            font-size: 0.9rem;
+            font-size: 1.1rem;
+            font-weight: 600;
             text-decoration: underline;
-            margin-top: 10px;
+            margin-top: 24px;
         }
 
         /* Vertical Slot Machine */
         .slot-machine {
-            height: 150px;
+            height: 240px;
             overflow: hidden;
             position: relative;
             margin: 1.5rem 0;
-            background: #f1f5f9;
-            border-radius: 16px;
-            border: 2px inset rgba(0,0,0,0.05);
             display: flex;
             flex-direction: column;
             align-items: center;
         }
 
         .slot-viewport {
-            height: 50px;
+            height: 80px;
             width: 100%;
             position: absolute;
-            top: 50px;
+            top: 80px;
             left: 0;
             pointer-events: none;
             z-index: 2;
+            /* Optional: add a subtle highlight or shadow to the viewport area if desired, 
+               but user asked to remove the gray box. */
         }
 
         .slot-list {
@@ -156,18 +156,17 @@
             flex-direction: column;
             align-items: center;
             width: 100%;
-            transition: transform 0.1s cubic-bezier(0.1, 0, 0.1, 1);
-            padding-top: 50px;
+            will-change: transform;
         }
 
         .slot-item {
-            height: 50px;
-            line-height: 50px;
+            height: 80px;
+            line-height: 80px;
             font-size: 1.5rem;
             font-weight: 700;
             color: var(--text);
             opacity: 0.3;
-            transition: all 0.2s ease;
+            transition: transform 0.2s ease, opacity 0.2s ease, color 0.2s ease;
             white-space: nowrap;
             width: 100%;
             text-align: center;
@@ -176,12 +175,15 @@
         .slot-item.active {
             opacity: 1;
             color: var(--accent);
-            transform: scale(1.2);
-            font-size: 1.8rem;
+            transform: scale(2.25);
         }
 
         .result-display {
-            margin: 1.5rem 0;
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 2rem 0;
             animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
@@ -257,15 +259,17 @@
 
 <div id="app">
     <div id="screen-home" class="card animate-fade">
-        <h1>Impromptu Speech Pro</h1>
+        <h1>Impromptu Speech</h1>
         <p class="subtitle">Master the Art of Speaking</p>
-        <div class="slot-machine">
+        <div class="slot-machine" style="flex-grow: 1;">
             <div class="slot-viewport"></div>
             <div id="slot-list" class="slot-list">
                 <!-- Topics will be populated here -->
             </div>
         </div>
-        <button id="btn-draw" class="btn btn-primary">Draw a Topic</button>
+        <div style="margin-top: auto;">
+            <button id="btn-draw" class="btn btn-primary">Draw a Topic</button>
+        </div>
     </div>
 
     <div id="screen-result" class="card hidden">
@@ -273,9 +277,11 @@
         <div class="result-display">
             <span id="res-text" class="result-text">Topic</span>
         </div>
-        <button id="btn-ready" class="btn btn-primary">I'm ready</button>
-        <button id="btn-speech-now" class="btn btn-outline">Start Speech Now</button>
-        <button id="btn-redraw" class="btn btn-text">Redraw a Topic</button>
+        <div style="margin-top: auto;">
+            <button id="btn-ready" class="btn btn-primary" style="margin-bottom: 32px;">I'm ready</button>
+            <button id="btn-speech-now" class="btn btn-outline">Start Speech Now</button>
+            <button id="btn-redraw" class="btn btn-text">Redraw a Topic</button>
+        </div>
     </div>
 
     <div id="screen-timer" class="card hidden">
@@ -288,7 +294,7 @@
             </svg>
             <div id="timer-display" class="timer-text">1:00</div>
         </div>
-        <div id="timer-controls">
+        <div id="timer-controls" style="margin-top: auto;">
             <button id="btn-start-speech" class="btn btn-primary hidden">Start Speaking</button>
             <button id="btn-cancel" class="btn btn-text">Restart</button>
         </div>
@@ -297,10 +303,12 @@
     <div id="screen-finish" class="card hidden">
         <h1>Time's Up!</h1>
         <p class="subtitle">Speech Ended</p>
-        <div style="margin: 2rem 0; font-size: 1.2rem;">
+        <div style="flex-grow: 1; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
             Great job! You've completed a practice session.
         </div>
-        <button id="btn-restart" class="btn btn-primary">Practice Again</button>
+        <div style="margin-top: auto;">
+            <button id="btn-restart" class="btn btn-primary">Practice Again</button>
+        </div>
     </div>
 </div>
 
@@ -367,12 +375,32 @@
     const slotList = document.getElementById('slot-list');
     function populateSlot() {
         slotList.innerHTML = '';
+        
+        // Add last item at the beginning for buffer
+        const lastDiv = document.createElement('div');
+        lastDiv.className = 'slot-item';
+        lastDiv.innerText = topics[topics.length - 1];
+        slotList.appendChild(lastDiv);
+
+        // Original items
         topics.forEach(t => {
             const div = document.createElement('div');
             div.className = 'slot-item';
             div.innerText = t;
             slotList.appendChild(div);
         });
+
+        // Add first few items at the end for buffer
+        for (let i = 0; i < 5; i++) {
+            const div = document.createElement('div');
+            div.className = 'slot-item';
+            div.innerText = topics[i];
+            slotList.appendChild(div);
+        }
+        
+        // Initial state
+        slotList.style.transform = 'translateY(0px)';
+        updateActiveItem(0);
     }
     populateSlot();
 
@@ -381,53 +409,65 @@
         const btnDraw = document.getElementById('btn-draw');
         btnDraw.disabled = true;
 
-        const totalDuration = 1400;
-        const startTime = performance.now();
-        const itemHeight = 50;
+        const itemHeight = 80;
         const totalItems = topics.length;
+        const finalIndex = Math.floor(Math.random() * totalItems);
         
+        const totalDuration = 2000; // 2 seconds for a smooth feel
+        const startTime = performance.now();
         let lastIndex = -1;
+
+        // Easing function for smooth stop
+        function easeOutQuart(x) {
+            return 1 - Math.pow(1 - x, 4);
+        }
 
         function animate(now) {
             const elapsed = now - startTime;
-            const progress = elapsed / totalDuration;
+            const progress = Math.min(elapsed / totalDuration, 1);
+            const easedProgress = easeOutQuart(progress);
             
+            // We scroll through a few full loops plus the final index to ensure a smooth stop
+            const spinLoops = 3; 
+            const totalDistanceItems = (spinLoops * totalItems) + finalIndex;
+            const currentPos = easedProgress * (totalDistanceItems * itemHeight);
+            
+            // Apply visual transform with modulo for seamless loop
+            const visualPos = currentPos % (totalItems * itemHeight);
+            slotList.style.transform = `translateY(-${visualPos}px)`;
+            
+            // Update active item based on visual position
+            const currentIndex = Math.round(visualPos / itemHeight) % totalItems;
+            if (currentIndex !== lastIndex) {
+                playTick();
+                updateActiveItem(currentIndex);
+                lastIndex = currentIndex;
+            }
+
             if (progress < 1) {
-                // Ease out cubic
-                const easeOut = 1 - Math.pow(1 - progress, 3);
-                const scrollPos = easeOut * (totalItems - 1) * itemHeight;
-                slotList.style.transform = `translateY(-${scrollPos}px)`;
-                
-                const currentIndex = Math.round(scrollPos / itemHeight);
-                if (currentIndex !== lastIndex) {
-                    playTick();
-                    updateActiveItem(currentIndex);
-                    lastIndex = currentIndex;
-                }
-                
                 requestAnimationFrame(animate);
             } else {
-                const finalIndex = Math.floor(Math.random() * totalItems);
-                slotList.style.transition = 'transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+                // Final alignment
                 slotList.style.transform = `translateY(-${finalIndex * itemHeight}px)`;
                 updateActiveItem(finalIndex);
                 
+                // Pause for 1 second then transition
                 setTimeout(() => {
                     currentTopic = topics[finalIndex];
                     document.getElementById('res-text').innerText = currentTopic;
                     showScreen('screen-result');
                     btnDraw.disabled = false;
-                    slotList.style.transition = 'none';
-                }, 600);
+                }, 1000);
             }
         }
         requestAnimationFrame(animate);
     }
 
-    function updateActiveItem(index) {
+    function updateActiveItem(topicIndex) {
         const items = slotList.querySelectorAll('.slot-item');
+        // topicIndex 0 corresponds to DOM index 1 because of the buffer item at index 0
         items.forEach((item, i) => {
-            if (i === index) item.classList.add('active');
+            if (i === topicIndex + 1) item.classList.add('active');
             else item.classList.remove('active');
         });
     }
