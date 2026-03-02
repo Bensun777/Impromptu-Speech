@@ -66,21 +66,21 @@
             justify-content: center;
         }
 
-        h1 {
+        h1, .subtitle {
             font-size: 2rem;
-            margin-bottom: 1.5rem;
+            margin-bottom: 0;
             font-weight: 900;
             letter-spacing: -0.05em;
             color: var(--accent);
-            text-transform: uppercase;
+        }
+
+        h1 {
+            margin-bottom: 1.5rem;
         }
 
         .subtitle {
-            font-size: 0.9rem;
-            color: var(--text-light);
-            margin-bottom: 1rem;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
+            display: block;
+            margin-bottom: 0;
         }
 
         .btn {
@@ -174,7 +174,7 @@
 
         .slot-item.active {
             opacity: 1;
-            color: var(--accent);
+            color: #059669; /* Emerald Green */
             transform: scale(2.25);
         }
 
@@ -192,12 +192,13 @@
             100% { transform: scale(1); opacity: 1; }
         }
 
-        .result-text {
-            font-size: 3.5rem;
+        .result-text, .phase-title {
+            font-size: 1.75rem;
             font-weight: 900;
-            color: var(--accent);
+            color: #059669; /* Beautiful Emerald Green */
             display: block;
-            line-height: 1.1;
+            line-height: 1.2;
+            text-align: center;
         }
 
         /* Timer and Progress */
@@ -205,7 +206,15 @@
             position: relative;
             width: 200px;
             height: 200px;
-            margin: 1.5rem auto;
+            margin: 3rem auto; /* Increased margin for better spacing */
+        }
+
+        #timer-topic {
+            margin: 2rem 0; /* Clear spacing between title and timer */
+        }
+
+        #timer-phase-label {
+            margin-bottom: 1rem; /* Spacing below 'Planning Time' or 'Speaking' */
         }
 
         .timer-svg {
@@ -238,13 +247,6 @@
             font-variant-numeric: tabular-nums;
         }
 
-        .phase-title {
-            font-size: 1.5rem;
-            font-weight: 800;
-            margin-bottom: 0.5rem;
-            color: var(--text);
-        }
-
         .hidden { display: none !important; }
 
         @media (max-width: 400px) {
@@ -260,7 +262,6 @@
 <div id="app">
     <div id="screen-home" class="card animate-fade">
         <h1>Impromptu Speech</h1>
-        <p class="subtitle">Master the Art of Speaking</p>
         <div class="slot-machine" style="flex-grow: 1;">
             <div class="slot-viewport"></div>
             <div id="slot-list" class="slot-list">
