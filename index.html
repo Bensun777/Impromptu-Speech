@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Impromptu Speech</title>
+    <title>System Thinking Training</title>
     <!-- 
     How to use:
     1. Double-click this index.html file to open in a browser.
@@ -265,7 +265,7 @@
 
 <div id="app">
     <div id="screen-home" class="card animate-fade">
-        <h1>Impromptu Speech</h1>
+        <h1>System Thinking Training</h1>
         <div class="slot-machine" style="flex-grow: 1;">
             <div class="slot-viewport"></div>
             <div id="slot-list" class="slot-list">
@@ -338,8 +338,9 @@
         const gain = audioCtx.createGain();
         osc.type = type;
         osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+        gain.gain.setValueAtTime(0.001, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.1, audioCtx.currentTime + 0.005);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
         osc.connect(gain);
         gain.connect(audioCtx.destination);
         osc.start();
@@ -347,7 +348,7 @@
     }
 
     function playTick() {
-        playBeep(1200, 0.02, 'square');
+        playBeep(800, 0.03, 'sine'); // Smoother sine wave, slightly lower frequency
     }
 
     function playEndSound() {
